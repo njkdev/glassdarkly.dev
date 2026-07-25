@@ -16,3 +16,6 @@ glassdarkly.md
 
 # Context archive (local reference, not published)
 opus-3-context-archive.md
+
+# Hugo's build lock — a runtime artifact, recreated on every build
+.hugo_build.lock
