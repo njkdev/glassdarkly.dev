@@ -2,7 +2,8 @@
 
 Hugo site deployed at glassdarkly.dev. Custom theme in `themes/glass/`.
 
-Verified against the code on 24 July 2026.
+Verified against the code on 24 July 2026; the Deploy section was rewritten on
+13 August 2026 for the move from Pages to Workers.
 
 ## Build & preview
 - `hugo server -D` — local dev **with drafts**. `content/posts/cold-read.md` is
@@ -18,19 +19,39 @@ Verified against the code on 24 July 2026.
   stylesheet
 
 ## Deploy
-- **Cloudflare Pages**, building from `origin/main`.
-- The **www→apex redirect is a Cloudflare dashboard rule, not a file.** Pages'
-  `_redirects` cannot match on hostname; one was tried and removed for exactly
-  that reason, so re-adding it won't work.
-- The Pages build pins **`HUGO_VERSION` to 0.164.0** as a dashboard environment
-  variable (site rebuilt there the week of 20 July 2026). The dashboard holds
-  that value, not this repo. Homebrew currently ships exactly 0.164.0, so a
-  local build matches CI without pinning anything.
+- **Cloudflare Workers** with static assets, building from `origin/main` —
+  migrated off Cloudflare Pages on 13 August 2026. Workers Builds runs `hugo`
+  on every push to main and serves `public/` per `wrangler.jsonc`. The Worker
+  is named `glassdarkly`; that name must match the dashboard or the build warns
+  and offers a PR to reconcile it.
+- **`wrangler.jsonc` is assets-only** — no `main`, no script, no bindings. Its
+  `not_found_handling: "404-page"` line is what serves `404.html`; Pages
+  inferred that from the file's presence, Workers requires it stated. Drop the
+  line and unknown URLs quietly return a bare 404 instead of the site's own.
+- **No local Node toolchain is involved.** Workers Builds runs
+  `npx wrangler deploy` inside Cloudflare's build container. This machine needs
+  only Homebrew Hugo, exactly as it did under Pages.
+- **`HUGO_VERSION` is pinned in the Workers dashboard**, currently **0.165.0**.
+  The dashboard holds that value, not this repo — if a local build ever
+  disagrees with the deployed site, check the pin first. As of 13 August 2026
+  Homebrew also ships 0.165.0, so local matches CI; that alignment breaks
+  silently whenever Homebrew moves, so re-check it rather than assume it.
+- The **www→apex redirect is a zone-level Cloudflare rule, not a file.** A
+  `_redirects` file cannot match on hostname — as true under Workers as it was
+  under Pages — so re-adding one won't work. `www` is an **A record →
+  `192.0.2.1`, proxied**: RFC 5737 TEST-NET-1, deliberately unroutable, there
+  only to give the redirect rule a proxied hostname to attach to. It was a
+  dangling `CNAME → glassdarkly.pages.dev` for a while after the Pages project
+  was deleted; don't reintroduce that shape.
+- Canonical URL is `https://glassdarkly.dev` (no www), enforced in two
+  independent places: the zone redirect rule, and `baseURL` in `hugo.toml`
+  which drives every canonical tag, feed URL and sitemap entry. They must
+  agree — the 301 does not rescue a wrong `baseURL`.
 - Nothing in the repo checks build status, and this site once served a stale
   build for a month — two curly quotes broke TOML front matter in June 2026 and
   the failure went unnoticed. Two guards, neither automatic: run `hugo` locally
-  before pushing, and turn on **build notifications in the Cloudflare Pages
-  dashboard** so a failed deploy emails you instead of passing in silence.
+  before pushing, and turn on **build notifications in the Workers dashboard**
+  so a failed deploy emails you instead of passing in silence.
 
 ## Conventions
 - **goldmark `unsafe` is off** (`hugo.toml:13`) — no raw HTML in markdown, and
