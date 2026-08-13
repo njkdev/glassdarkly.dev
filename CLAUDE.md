@@ -58,8 +58,12 @@ Verified against the code on 24 July 2026; the Deploy section was rewritten on
   is stated explicitly here so it doesn't turn on with a version bump.)
 - **Nothing warns when a build fails.** This site once served a stale build for
   a month — two curly quotes broke TOML front matter in June 2026 and the
-  failure went unnoticed. The only guard is manual: run `hugo` locally before
-  pushing.
+  failure went unnoticed. Both guards are **manual — nothing runs them for
+  you**: `hugo` locally before pushing catches a build that would break, and
+  `nu ~/Developer/jackaloop/thump.nu glassdarkly.dev --expect-workers` after
+  pushing catches a deploy that landed wrong. The second is the one that would
+  have caught June; running `hugo` alone would not have, because the local
+  build was fine and the *deployed* copy was stale.
 - Migrating to Workers **lost** the one automatic guard that was available
   under Pages. Cloudflare's notification catalogue has a "Pages: Project
   updates" type covering failed deployments on every plan; there is **no
@@ -70,10 +74,11 @@ Verified against the code on 24 July 2026; the Deploy section was rewritten on
   Don't go looking for a toggle; there isn't one.
 - Considered and **deliberately deferred** on 13 August 2026: a GitHub Actions
   workflow building with the pinned Hugo on push, optionally with a scheduled
-  job running a liveness check against the live site. Free, and it would catch
-  both a broken build and a silently stale deploy. Not set up — the guard
-  remains manual. Revisit if a bad deploy ever goes unnoticed. njk.dev carries
-  the same note and the same gap.
+  job running `thump.nu`. Free, and it would make the checks above automatic
+  rather than remembered. Not set up — `thump.nu` already exits non-zero on
+  failure, so wiring it up is the small part; deciding to is the rest.
+  Revisit if a bad deploy ever goes unnoticed. njk.dev carries the same note
+  and the same gap.
 
 ## Conventions
 - **goldmark `unsafe` is off** (`hugo.toml:13`) — no raw HTML in markdown, and
