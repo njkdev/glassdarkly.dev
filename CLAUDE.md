@@ -66,8 +66,14 @@ Verified against the code on 24 July 2026; the Deploy section was rewritten on
   Workers equivalent** (checked 13 August 2026). Workers Builds also posts no
   commit status back to GitHub, so nothing surfaces there either. The
   documented path is Queue Event Subscriptions feeding a second Worker that
-  forwards build events — real setup, not a checkbox. Don't go looking for a
-  toggle; there isn't one.
+  forwards build events — real setup on a paid Workers plan, not a checkbox.
+  Don't go looking for a toggle; there isn't one.
+- Considered and **deliberately deferred** on 13 August 2026: a GitHub Actions
+  workflow building with the pinned Hugo on push, optionally with a scheduled
+  job running a liveness check against the live site. Free, and it would catch
+  both a broken build and a silently stale deploy. Not set up — the guard
+  remains manual. Revisit if a bad deploy ever goes unnoticed. njk.dev carries
+  the same note and the same gap.
 
 ## Conventions
 - **goldmark `unsafe` is off** (`hugo.toml:13`) — no raw HTML in markdown, and
