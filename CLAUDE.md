@@ -47,6 +47,13 @@ Verified against the code on 24 July 2026; the Deploy section was rewritten on
   independent places: the zone redirect rule, and `baseURL` in `hugo.toml`
   which drives every canonical tag, feed URL and sitemap entry. They must
   agree — the 301 does not rescue a wrong `baseURL`.
+- The site also answers at **`glassdarkly.n8k.workers.dev`**, which Workers
+  enables by default on deploy — it is not something that was switched on.
+  `baseURL` means that copy still points its canonical tags, feed URLs and
+  sitemap entries at the apex, so the duplicate is largely inert, but it is a
+  second front door; turn it off under **Settings → Domains & Routes** if the
+  single-address rule should hold literally. njk.dev has the same route live
+  for the same reason.
 - Nothing in the repo checks build status, and this site once served a stale
   build for a month — two curly quotes broke TOML front matter in June 2026 and
   the failure went unnoticed. Two guards, neither automatic: run `hugo` locally
