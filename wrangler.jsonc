@@ -3,7 +3,7 @@
 // pinned in the dashboard) and everything in public/ is served as static
 // assets. No Worker script — assets only.
 {
-	"name": "glassdarkly-dev",
+	"name": "glassdarkly",
 	"compatibility_date": "2026-08-13",
 	"assets": {
 		"directory": "./public",
