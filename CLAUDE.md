@@ -56,11 +56,18 @@ Verified against the code on 24 July 2026; the Deploy section was rewritten on
   while it was in fact serving the whole site, for exactly this reason.
   (`preview_urls` defaults to matching `workers_dev` on current Wrangler, but
   is stated explicitly here so it doesn't turn on with a version bump.)
-- Nothing in the repo checks build status, and this site once served a stale
-  build for a month — two curly quotes broke TOML front matter in June 2026 and
-  the failure went unnoticed. Two guards, neither automatic: run `hugo` locally
-  before pushing, and turn on **build notifications in the Workers dashboard**
-  so a failed deploy emails you instead of passing in silence.
+- **Nothing warns when a build fails.** This site once served a stale build for
+  a month — two curly quotes broke TOML front matter in June 2026 and the
+  failure went unnoticed. The only guard is manual: run `hugo` locally before
+  pushing.
+- Migrating to Workers **lost** the one automatic guard that was available
+  under Pages. Cloudflare's notification catalogue has a "Pages: Project
+  updates" type covering failed deployments on every plan; there is **no
+  Workers equivalent** (checked 13 August 2026). Workers Builds also posts no
+  commit status back to GitHub, so nothing surfaces there either. The
+  documented path is Queue Event Subscriptions feeding a second Worker that
+  forwards build events — real setup, not a checkbox. Don't go looking for a
+  toggle; there isn't one.
 
 ## Conventions
 - **goldmark `unsafe` is off** (`hugo.toml:13`) — no raw HTML in markdown, and
