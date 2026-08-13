@@ -47,13 +47,15 @@ Verified against the code on 24 July 2026; the Deploy section was rewritten on
   independent places: the zone redirect rule, and `baseURL` in `hugo.toml`
   which drives every canonical tag, feed URL and sitemap entry. They must
   agree — the 301 does not rescue a wrong `baseURL`.
-- The site also answers at **`glassdarkly.n8k.workers.dev`**, which Workers
-  enables by default on deploy — it is not something that was switched on.
-  `baseURL` means that copy still points its canonical tags, feed URLs and
-  sitemap entries at the apex, so the duplicate is largely inert, but it is a
-  second front door; turn it off under **Settings → Domains & Routes** if the
-  single-address rule should hold literally. njk.dev has the same route live
-  for the same reason.
+- **`workers_dev: false` and `preview_urls: false` must stay in
+  `wrangler.jsonc`, not the dashboard.** Workers enables
+  `glassdarkly.n8k.workers.dev` by default on every deploy, and disabling it
+  in the UI is silently undone by the next `wrangler deploy` — which every
+  push to main triggers. Setting it in the config is the only version that
+  survives. njk.dev's notes claimed for weeks that its route was disabled
+  while it was in fact serving the whole site, for exactly this reason.
+  (`preview_urls` defaults to matching `workers_dev` on current Wrangler, but
+  is stated explicitly here so it doesn't turn on with a version bump.)
 - Nothing in the repo checks build status, and this site once served a stale
   build for a month — two curly quotes broke TOML front matter in June 2026 and
   the failure went unnoticed. Two guards, neither automatic: run `hugo` locally

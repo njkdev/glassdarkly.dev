@@ -5,6 +5,11 @@
 {
 	"name": "glassdarkly",
 	"compatibility_date": "2026-08-13",
+	// The site answers only at glassdarkly.dev. Both of these MUST live here
+	// rather than in the dashboard: disabling the workers.dev route in the UI
+	// is undone by the next `wrangler deploy`, which every push triggers.
+	"workers_dev": false,
+	"preview_urls": false,
 	"assets": {
 		"directory": "./public",
 		// Pages inferred custom-404 behaviour from the presence of 404.html;
