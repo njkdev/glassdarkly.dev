@@ -43,6 +43,29 @@ Verified against the code on 24 July 2026; the Deploy section was rewritten on
   only to give the redirect rule a proxied hostname to attach to. It was a
   dangling `CNAME → glassdarkly.pages.dev` for a while after the Pages project
   was deleted; don't reintroduce that shape.
+- **The rule is a Single Redirect as of 14 August 2026**, under **Rules →
+  Redirect Rules** — not the legacy Page Rule it used to be
+  (`https://www.glassdarkly.dev/*` → `https://glassdarkly.dev/$1`, now deleted;
+  the zone has zero Page Rules). It matches
+  `(http.host eq "www.glassdarkly.dev")` — **hostname only, no scheme** — and
+  targets `concat("https://glassdarkly.dev", http.request.uri.path)` with query
+  string preserved. Page Rules are being retired, and a scheme-specific pattern
+  makes `Always Use HTTPS` load-bearing rather than a nicety: a plain
+  `http://www` request would miss the rule and hang against the unroutable
+  address. Don't add a scheme back into the expression.
+- **Zone settings were normalised 14 August 2026** across all four zones so they
+  match. Two goals: Cloudflare injects **no JavaScript**, and friendly crawlers
+  get through unchallenged. Off here: Rocket Loader, Email Obfuscation,
+  bot-detection JS (`enable_js`, which *was* on for this zone), the Web
+  Analytics beacon, Server-Side Excludes, Browser Integrity Check, Bot Fight
+  Mode, every AI/crawler block, Cloudflare's managed robots.txt, Hotlink
+  Protection (also previously on), Security Level `essentially_off`. On: HSTS
+  (`max-age=15552000`, `includeSubDomains`, **no preload**), `nosniff`, Always
+  Use HTTPS, SSL Full (strict), **minimum TLS 1.2** — lowered from 1.3 so
+  1.2-only crawlers can still connect — plus TLS 1.3, HTTP/2, HTTP/3, Brotli,
+  Early Hints. Full rationale is recorded once in
+  `~/Developer/njk.ing/CLAUDE.md`; change it there and here together or they
+  drift.
 - Canonical URL is `https://glassdarkly.dev` (no www), enforced in two
   independent places: the zone redirect rule, and `baseURL` in `hugo.toml`
   which drives every canonical tag, feed URL and sitemap entry. They must
