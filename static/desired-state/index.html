@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>desired state</title>
+<meta name="description" content="An interactive work about selection, preservation, and reconstruction. Part of glassdarkly.dev.">
+<meta name="theme-color" content="#0e0e0e">
+<script src="/js/p5.min.js"></script>
+<style>
+  @font-face {
+    font-family: 'IBM Plex Mono';
+    src: url('/fonts/IBMPlexMono-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: #0e0e0e;
+  }
+
+  body {
+    color: #b8b6bc;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    touch-action: none;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  canvas {
+    display: block;
+  }
+
+  a, button {
+    font: inherit;
+  }
+
+  a:focus-visible, button:focus-visible {
+    outline: 1px solid #948ae3;
+    outline-offset: 4px;
+  }
+
+  .back {
+    position: fixed;
+    top: max(16px, env(safe-area-inset-top));
+    left: max(18px, env(safe-area-inset-left));
+    z-index: 10;
+    color: #69676c;
+    font-size: 11px;
+    letter-spacing: 0.03em;
+    text-decoration: none;
+    transition: color 160ms ease;
+  }
+
+  .back:hover {
+    color: #b8b6bc;
+  }
+
+  .work-title {
+    position: fixed;
+    top: max(48px, calc(env(safe-area-inset-top) + 32px));
+    left: max(18px, env(safe-area-inset-left));
+    z-index: 8;
+    max-width: min(29rem, calc(100vw - 36px));
+    pointer-events: none;
+  }
+
+  .work-title h1 {
+    margin: 0 0 7px;
+    color: #f7f1ff;
+    font-size: clamp(17px, 2.1vw, 24px);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+  }
+
+  .work-title p {
+    margin: 0;
+    color: #69676c;
+    font-size: clamp(9px, 1.1vw, 11px);
+    line-height: 1.55;
+    letter-spacing: 0.02em;
+  }
+
+  .close-session {
+    position: fixed;
+    right: max(18px, env(safe-area-inset-right));
+    bottom: max(18px, env(safe-area-inset-bottom));
+    z-index: 10;
+    min-height: 40px;
+    padding: 9px 13px;
+    border: 1px solid #343238;
+    border-radius: 0;
+    background: rgba(14, 14, 14, 0.88);
+    color: #948ae3;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+  }
+
+  .close-session:hover:not(:disabled) {
+    border-color: #69676c;
+    background: #151417;
+    color: #c0b8f1;
+  }
+
+  .close-session:disabled {
+    color: #525053;
+    cursor: default;
+  }
+
+  .visually-hidden {
+    position: fixed;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  @media (max-width: 620px) {
+    .work-title {
+      top: max(44px, calc(env(safe-area-inset-top) + 28px));
+    }
+
+    .work-title p {
+      max-width: 15rem;
+    }
+
+    .close-session {
+      left: max(18px, env(safe-area-inset-left));
+      right: auto;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      transition: none !important;
+    }
+  }
+</style>
+</head>
+<body>
+<a class="back" href="/">&larr; glass darkly</a>
+<header class="work-title">
+  <h1>desired state</h1>
+  <p id="instruction">select records to copy into source. select them again to remove.</p>
+</header>
+<button class="close-session" id="close-session" type="button">close session</button>
+<p class="visually-hidden" id="art-description">A field of configuration records sits to the left of a glass boundary. Select records to preserve them in source, then close the session to reconstruct the field.</p>
+<div class="visually-hidden" id="status" aria-live="polite"></div>
+<noscript>This work requires JavaScript.</noscript>
+
+<script>
+'use strict';
+
+const SEED = 140826;
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const palette = {
+  bg: '#0e0e0e',
+  foreground: '#f7f1ff',
+  pink: '#fc618d',
+  green: '#7bd88f',
+  yellow: '#fce566',
+  orange: '#fd9353',
+  purple: '#948ae3',
+  cyan: '#5ad4e6',
+  gray: '#69676c',
+  darkGray: '#343238',
+  faint: '#242328'
+};
+
+const initialRecords = [
+  { id: 'config', label: 'config.nu', kind: 'durable', color: 'orange', weight: 1 },
+  { id: 'notes', label: 'notes.md', kind: 'durable', color: 'purple', weight: 1 },
+  { id: 'brewfile', label: 'Brewfile', kind: 'durable', color: 'yellow', weight: 1 },
+  { id: 'theme', label: 'theme.yml', kind: 'durable', color: 'cyan', weight: 1 },
+  { id: 'ssh-config', label: 'ssh config', kind: 'durable', color: 'green', weight: 1 },
+  { id: 'public-key', label: 'public key', kind: 'durable', color: 'green', weight: 1 },
+  { id: 'ls-colors', label: 'ls-colors.nu', kind: 'generated', color: 'cyan', weight: 2 },
+  { id: 'zoxide-init', label: 'zoxide.nu', kind: 'generated', color: 'cyan', weight: 2 },
+  { id: 'history-1', label: 'history.txt', kind: 'transient', color: 'gray', weight: 3 },
+  { id: 'session-1', label: 'session.log', kind: 'transient', color: 'gray', weight: 3 },
+  { id: 'cache-1', label: 'cache/', kind: 'transient', color: 'gray', weight: 3 },
+  { id: 'known-hosts-1', label: 'known_hosts', kind: 'transient', color: 'gray', weight: 2 },
+  { id: 'private-key-1', label: 'private key', kind: 'secret', color: 'pink', weight: 0 },
+  { id: 'token-1', label: 'access token', kind: 'secret', color: 'pink', weight: 0 },
+  { id: 'keychain-1', label: 'keychain', kind: 'secret', color: 'pink', weight: 0 }
+];
+
+let artifacts = [];
+let sourceRecords = [];
+let pulses = [];
+let impacts = [];
+let dust = [];
+let paneX = 0;
+let phase = 'live';
+let phaseFrame = 0;
+let sessionNumber = 1;
+let hoveredArtifact = null;
+let hoveredSourceIndex = -1;
+let closeButton;
+let instruction;
+let liveStatus;
+
+class Artifact {
+  constructor(spec, restored = false, sourceIndex = -1) {
+    this.spec = { ...spec };
+    this.radius = spec.kind === 'secret' ? 10 : spec.kind === 'transient' ? 7 : 8;
+    this.seed = random(1000);
+    this.opacity = restored ? 0 : 205;
+    this.managed = sourceRecords.some(record => record.id === spec.id);
+    this.sourceIndex = sourceIndex;
+    this.restoring = restored;
+    this.arrival = restored ? 0 : 1;
+    const target = findOpenPosition();
+    this.targetX = target.x;
+    this.targetY = target.y;
+    this.x = restored ? paneX + 2 : target.x;
+    this.y = restored && sourceIndex >= 0 ? sourceRowY(sourceIndex) : target.y;
+    this.renderX = this.x;
+    this.renderY = this.y;
+    this.vx = random(-0.12, 0.12);
+    this.vy = random(-0.1, 0.1);
+  }
+
+  update() {
+    if (phase === 'closing') {
+      this.opacity *= reducedMotion ? 0.82 : 0.95;
+      return;
+    }
+
+    if (this.restoring) {
+      this.arrival = min(1, this.arrival + (reducedMotion ? 0.09 : 0.025));
+      const eased = 1 - pow(1 - this.arrival, 3);
+      this.x = lerp(paneX + 2, this.targetX, eased);
+      this.y = lerp(sourceRowY(max(0, this.sourceIndex)), this.targetY, eased);
+      this.opacity = lerp(0, 205, eased);
+      if (this.arrival >= 1) this.restoring = false;
+    } else if (!reducedMotion) {
+      const t = frameCount * 0.0025 + this.seed;
+      this.vx += (noise(t, 1) - 0.5) * 0.012;
+      this.vy += (noise(t, 2) - 0.5) * 0.012;
+      this.vx = constrain(this.vx, -0.18, 0.18);
+      this.vy = constrain(this.vy, -0.16, 0.16);
+      this.x += this.vx;
+      this.y += this.vy;
+      keepInCurrentField(this);
+    }
+
+    const drift = reducedMotion ? 0 : sin(frameCount * 0.013 + this.seed) * 1.8;
+    this.renderX = this.x + drift;
+    this.renderY = this.y + cos(frameCount * 0.009 + this.seed) * (reducedMotion ? 0 : 1.4);
+  }
+
+  display(isHovered) {
+    const color = palette[this.spec.color];
+    const alpha = this.opacity;
+    push();
+    translate(this.renderX, this.renderY);
+    noFill();
+    stroke(colorWithAlpha(color, isHovered ? alpha : alpha * 0.72));
+    strokeWeight(isHovered ? 1.35 : 0.8);
+
+    if (this.spec.kind === 'generated') {
+      rotate(PI / 4);
+      rectMode(CENTER);
+      rect(0, 0, this.radius * 1.55, this.radius * 1.55);
+      rotate(-PI / 4);
+    } else if (this.spec.kind === 'transient') {
+      drawingContext.setLineDash([2, 3]);
+      circle(0, 0, this.radius * 2);
+      drawingContext.setLineDash([]);
+    } else if (this.spec.kind === 'secret') {
+      circle(0, 0, this.radius * 2.15);
+      line(-this.radius * 0.55, this.radius * 0.55, this.radius * 0.55, -this.radius * 0.55);
+    } else {
+      circle(0, 0, this.radius * 2);
+      circle(0, 0, this.radius * 0.55);
+    }
+
+    if (this.managed) {
+      noStroke();
+      fill(colorWithAlpha(palette.orange, alpha));
+      circle(this.radius + 4, -this.radius - 2, 3.2);
+    }
+    pop();
+
+    const labelAlpha = isHovered ? min(255, alpha + 30) : min(126, alpha * 0.62);
+    noStroke();
+    fill(colorWithAlpha(isHovered ? palette.foreground : palette.gray, labelAlpha));
+    textAlign(LEFT, CENTER);
+    textSize(width < 620 ? 8 : 9.5);
+    text(this.spec.label, this.renderX + this.radius + 8, this.renderY - 0.5);
+  }
+
+  contains(px, py) {
+    return dist(px, py, this.renderX, this.renderY) < this.radius + 16;
+  }
+}
+
+class Pulse {
+  constructor(x, y, id, outward) {
+    this.x = x;
+    this.y = y;
+    this.id = id;
+    this.outward = outward;
+    this.progress = 0;
+    this.dead = false;
+  }
+
+  updateAndDisplay() {
+    this.progress += reducedMotion ? 0.12 : 0.035;
+    if (this.progress >= 1) this.dead = true;
+    const index = max(0, sourceRecords.findIndex(record => record.id === this.id));
+    const sourceX = paneX + 28;
+    const sourceY = sourceRowY(index);
+    const fromX = this.outward ? this.x : sourceX;
+    const fromY = this.outward ? this.y : sourceY;
+    const toX = this.outward ? sourceX : this.x;
+    const toY = this.outward ? sourceY : this.y;
+    const eased = 1 - pow(1 - min(1, this.progress), 3);
+    const px = lerp(fromX, toX, eased);
+    const py = lerp(fromY, toY, eased);
+    const glow = sin(min(1, this.progress) * PI);
+    noStroke();
+    fill(colorWithAlpha(palette.orange, 40 + glow * 180));
+    circle(px, py, 3 + glow * 5);
+  }
+}
+
+class Impact {
+  constructor(artifact) {
+    this.x = artifact.renderX;
+    this.y = artifact.renderY;
+    this.life = 0;
+    this.dead = false;
+  }
+
+  updateAndDisplay() {
+    this.life += reducedMotion ? 0.08 : 0.035;
+    if (this.life >= 1) this.dead = true;
+    const approach = min(1, this.life * 2.2);
+    const ix = lerp(this.x, paneX, approach);
+    const iy = this.y;
+    stroke(colorWithAlpha(palette.pink, 150 * (1 - this.life)));
+    strokeWeight(0.8);
+    line(this.x, this.y, ix, iy);
+    noFill();
+    stroke(colorWithAlpha(palette.pink, 210 * (1 - this.life)));
+    circle(paneX, iy, 5 + this.life * 30);
+    if (this.life > 0.35 && this.life < 0.8) {
+      noStroke();
+      fill(colorWithAlpha(palette.pink, 180 * (1 - this.life)));
+      textAlign(RIGHT, CENTER);
+      textSize(8.5);
+      text('local only', paneX - 12, iy - 12);
+    }
+  }
+}
+
+function setup() {
+  const canvas = createCanvas(windowWidth, windowHeight);
+  canvas.elt.setAttribute('role', 'img');
+  canvas.elt.setAttribute('aria-describedby', 'art-description');
+  pixelDensity(min(window.devicePixelRatio || 1, 2));
+  frameRate(reducedMotion ? 24 : 60);
+  textFont('IBM Plex Mono');
+  randomSeed(SEED);
+  noiseSeed(SEED);
+  paneX = getPaneX();
+  closeButton = document.getElementById('close-session');
+  instruction = document.getElementById('instruction');
+  liveStatus = document.getElementById('status');
+  closeButton.addEventListener('click', closeSession);
+  createDust();
+  buildInitialField();
+}
+
+function draw() {
+  background(palette.bg);
+  paneX = getPaneX();
+  drawAmbientField();
+  drawGlass();
+  drawFieldLabels();
+  updateHoverState();
+  drawManagedTethers();
+
+  for (const artifact of artifacts) {
+    artifact.update();
+    artifact.display(artifact === hoveredArtifact);
+  }
+
+  drawSource();
+
+  for (const pulse of pulses) pulse.updateAndDisplay();
+  pulses = pulses.filter(pulse => !pulse.dead);
+  for (const impact of impacts) impact.updateAndDisplay();
+  impacts = impacts.filter(impact => !impact.dead);
+
+  if (phase === 'closing') {
+    phaseFrame++;
+    if (phaseFrame > (reducedMotion ? 18 : 72)) restoreSession();
+  } else if (phase === 'restoring') {
+    phaseFrame++;
+    if (artifacts.every(artifact => !artifact.restoring) || phaseFrame > 150) finishRestore();
+  }
+}
+
+function buildInitialField() {
+  artifacts = [];
+  for (const spec of initialRecords) artifacts.push(new Artifact(spec));
+}
+
+function findOpenPosition() {
+  const left = 28;
+  const right = max(left + 80, paneX - 48);
+  const top = min(height * 0.3, 155);
+  const bottom = max(top + 80, height - 64);
+  let candidate = { x: random(left, right), y: random(top, bottom) };
+  for (let attempt = 0; attempt < 60; attempt++) {
+    candidate = { x: random(left, right), y: random(top, bottom) };
+    if (artifacts.every(artifact => dist(candidate.x, candidate.y, artifact.x, artifact.y) > 50)) break;
+  }
+  return candidate;
+}
+
+function keepInCurrentField(artifact) {
+  const left = 24;
+  const right = paneX - 38;
+  const top = min(height * 0.3, 145);
+  const bottom = height - 52;
+  if (artifact.x < left || artifact.x > right) {
+    artifact.vx *= -1;
+    artifact.x = constrain(artifact.x, left, right);
+  }
+  if (artifact.y < top || artifact.y > bottom) {
+    artifact.vy *= -1;
+    artifact.y = constrain(artifact.y, top, bottom);
+  }
+}
+
+function getPaneX() {
+  return width < 620 ? width * 0.56 : width * 0.66;
+}
+
+function sourceRowY(index) {
+  const top = min(height * 0.28, 135);
+  const available = max(100, height - top - 90);
+  const gap = sourceRecords.length > 1 ? min(34, available / sourceRecords.length) : 34;
+  return top + index * gap + gap * 0.5;
+}
+
+function drawGlass() {
+  const proximity = constrain(1 - abs(mouseX - paneX) / 130, 0, 1);
+  stroke(colorWithAlpha(palette.purple, 48 + proximity * 45));
+  strokeWeight(0.7);
+  line(paneX, 22, paneX, height - 22);
+
+  noFill();
+  strokeWeight(0.45);
+  for (let side of [-1, 1]) {
+    beginShape();
+    for (let y = 30; y < height - 25; y += 12) {
+      const ripple = sin(y * 0.017 + frameCount * (reducedMotion ? 0 : 0.008)) * (1.2 + proximity * 2.4);
+      vertex(paneX + side * (5 + ripple), y);
+    }
+    endShape();
+  }
+}
+
+function drawFieldLabels() {
+  noStroke();
+  textSize(8.5);
+  textAlign(LEFT, CENTER);
+  fill(colorWithAlpha(palette.gray, 105));
+  text(`current / ${sessionNumber}`, 20, height - 23);
+  textAlign(RIGHT, CENTER);
+  text(`source / ${sourceRecords.length}`, width - 20, height - 23);
+}
+
+function drawManagedTethers() {
+  for (const artifact of artifacts) {
+    const index = sourceRecords.findIndex(record => record.id === artifact.spec.id);
+    if (index < 0) continue;
+    stroke(colorWithAlpha(palette.orange, 22));
+    strokeWeight(0.45);
+    line(artifact.renderX, artifact.renderY, paneX, sourceRowY(index));
+  }
+}
+
+function drawSource() {
+  const weight = sourceWeight();
+  const sediment = max(0, weight - 8);
+  if (sediment > 0) {
+    noStroke();
+    const count = floor(sediment * 12);
+    for (let i = 0; i < count; i++) {
+      const sx = paneX + 12 + noise(i * 0.23, 4) * max(10, width - paneX - 25);
+      const sy = height - 34 - noise(i * 0.31, 7) * min(height * 0.27, sediment * 8);
+      fill(colorWithAlpha(palette.orange, 12 + sediment * 1.5));
+      circle(sx, sy, 1.2 + noise(i) * 2.2);
+    }
+  }
+
+  for (let i = 0; i < sourceRecords.length; i++) {
+    const record = sourceRecords[i];
+    const y = sourceRowY(i);
+    const hovered = i === hoveredSourceIndex;
+    const left = paneX + 25;
+    const right = width - 22;
+    stroke(colorWithAlpha(palette[record.color], hovered ? 175 : 78));
+    strokeWeight(hovered ? 1.1 : 0.65);
+    line(left, y, right, y);
+    noStroke();
+    fill(colorWithAlpha(palette[record.color], hovered ? 235 : 145));
+    circle(left, y, 3.5);
+    fill(colorWithAlpha(hovered ? palette.foreground : palette.gray, hovered ? 225 : 135));
+    textAlign(LEFT, BOTTOM);
+    textSize(width < 620 ? 7.5 : 8.5);
+    text(truncateLabel(record.label, right - left - 8), left + 7, y - 4);
+  }
+
+  noStroke();
+  fill(colorWithAlpha(palette.gray, 80));
+  textAlign(RIGHT, TOP);
+  textSize(7.5);
+  text(`${weight} weight`, width - 20, 23);
+}
+
+function drawAmbientField() {
+  if (reducedMotion) return;
+  noStroke();
+  for (const mote of dust) {
+    mote.y += mote.speed;
+    mote.x += sin(frameCount * 0.004 + mote.seed) * 0.03;
+    if (mote.y > height + 5) {
+      mote.y = -5;
+      mote.x = random(0, paneX - 20);
+    }
+    fill(colorWithAlpha(palette.gray, mote.alpha));
+    circle(mote.x, mote.y, mote.size);
+  }
+}
+
+function createDust() {
+  dust = [];
+  for (let i = 0; i < 55; i++) {
+    dust.push({
+      x: random(width),
+      y: random(height),
+      size: random(0.5, 1.7),
+      speed: random(0.015, 0.07),
+      alpha: random(10, 35),
+      seed: random(100)
+    });
+  }
+}
+
+function updateHoverState() {
+  hoveredArtifact = phase === 'live'
+    ? artifacts.slice().reverse().find(artifact => artifact.contains(mouseX, mouseY)) || null
+    : null;
+  hoveredSourceIndex = -1;
+  if (phase === 'live' && mouseX > paneX) {
+    for (let i = 0; i < sourceRecords.length; i++) {
+      if (abs(mouseY - sourceRowY(i)) < 14) {
+        hoveredSourceIndex = i;
+        break;
+      }
+    }
+  }
+  cursor(hoveredArtifact || hoveredSourceIndex >= 0 ? HAND : ARROW);
+}
+
+function handleSelection(px, py) {
+  if (phase !== 'live') return false;
+  if (px > paneX) {
+    for (let i = 0; i < sourceRecords.length; i++) {
+      if (abs(py - sourceRowY(i)) < 15) {
+        removeFromSource(i);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  const artifact = artifacts.slice().reverse().find(item => item.contains(px, py));
+  if (!artifact) return false;
+  if (artifact.spec.kind === 'secret') {
+    impacts.push(new Impact(artifact));
+    announce(`${artifact.spec.label} remained local`);
+    return true;
+  }
+
+  const existing = sourceRecords.findIndex(record => record.id === artifact.spec.id);
+  if (existing >= 0) {
+    removeFromSource(existing, artifact);
+  } else {
+    sourceRecords.push({ ...artifact.spec });
+    setManaged(artifact.spec.id, true);
+    pulses.push(new Pulse(artifact.renderX, artifact.renderY, artifact.spec.id, true));
+    announce(`${artifact.spec.label} added to source`);
+  }
+  return true;
+}
+
+function removeFromSource(index, originArtifact = null) {
+  const record = sourceRecords[index];
+  const artifact = originArtifact || artifacts.find(item => item.spec.id === record.id);
+  sourceRecords.splice(index, 1);
+  setManaged(record.id, false);
+  if (artifact) pulses.push(new Pulse(artifact.renderX, artifact.renderY, record.id, false));
+  announce(`${record.label} removed from source`);
+}
+
+function setManaged(id, managed) {
+  for (const artifact of artifacts) {
+    if (artifact.spec.id === id) artifact.managed = managed;
+  }
+}
+
+function closeSession() {
+  if (phase !== 'live') return;
+  phase = 'closing';
+  phaseFrame = 0;
+  closeButton.disabled = true;
+  closeButton.textContent = 'closing';
+  instruction.textContent = 'current state is ending.';
+  announce(`session ${sessionNumber} closing with ${sourceRecords.length} source records`);
+}
+
+function restoreSession() {
+  sessionNumber++;
+  phase = 'restoring';
+  phaseFrame = 0;
+  artifacts = [];
+  const weight = sourceWeight();
+  for (let i = 0; i < sourceRecords.length; i++) {
+    const artifact = new Artifact(sourceRecords[i], true, i);
+    if (weight > 11 && !reducedMotion) {
+      artifact.targetX += random(-min(30, weight), min(30, weight));
+      artifact.targetY += random(-min(22, weight), min(22, weight));
+    }
+    artifacts.push(artifact);
+  }
+  for (const spec of freshSessionRecords()) artifacts.push(new Artifact(spec, true, 0));
+  instruction.textContent = `restoring session ${sessionNumber} from ${sourceRecords.length} records.`;
+}
+
+function finishRestore() {
+  phase = 'live';
+  phaseFrame = 0;
+  closeButton.disabled = false;
+  closeButton.textContent = 'close session';
+  instruction.textContent = 'select records to copy into source. select them again to remove.';
+  announce(`session ${sessionNumber} restored from ${sourceRecords.length} source records`);
+}
+
+function freshSessionRecords() {
+  return [
+    { id: `history-${sessionNumber}`, label: `history.${sessionNumber}.txt`, kind: 'transient', color: 'gray', weight: 3 },
+    { id: `session-${sessionNumber}`, label: `session-${sessionNumber}.log`, kind: 'transient', color: 'gray', weight: 3 },
+    { id: `cache-${sessionNumber}`, label: `cache-${sessionNumber}/`, kind: 'transient', color: 'gray', weight: 3 },
+    { id: `private-key-${sessionNumber}`, label: 'private key', kind: 'secret', color: 'pink', weight: 0 },
+    { id: `token-${sessionNumber}`, label: 'access token', kind: 'secret', color: 'pink', weight: 0 }
+  ];
+}
+
+function sourceWeight() {
+  return sourceRecords.reduce((sum, record) => sum + record.weight, 0);
+}
+
+function truncateLabel(label, maxWidth) {
+  if (textWidth(label) <= maxWidth) return label;
+  let shortened = label;
+  while (shortened.length > 2 && textWidth(`${shortened}...`) > maxWidth) {
+    shortened = shortened.slice(0, -1);
+  }
+  return `${shortened}...`;
+}
+
+function colorWithAlpha(hex, alpha) {
+  const value = color(hex);
+  value.setAlpha(constrain(alpha, 0, 255));
+  return value;
+}
+
+function announce(message) {
+  liveStatus.textContent = message;
+}
+
+function mousePressed() {
+  if (mouseX < 0 || mouseX > width || mouseY < 0 || mouseY > height) return;
+  handleSelection(mouseX, mouseY);
+}
+
+function touchStarted() {
+  if (!touches.length) return true;
+  const touch = touches[0];
+  return handleSelection(touch.x, touch.y) ? false : true;
+}
+
+function keyPressed() {
+  if (key === ' ' && document.activeElement !== closeButton) {
+    closeSession();
+    return false;
+  }
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  paneX = getPaneX();
+  createDust();
+  for (const artifact of artifacts) {
+    artifact.targetX = constrain(artifact.targetX, 24, paneX - 38);
+    artifact.targetY = constrain(artifact.targetY, min(height * 0.3, 145), height - 52);
+    artifact.x = constrain(artifact.x, 24, paneX - 38);
+    artifact.y = constrain(artifact.y, min(height * 0.3, 145), height - 52);
+  }
+}
+</script>
+</body>
+</html>

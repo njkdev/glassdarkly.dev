@@ -15,7 +15,7 @@ Verified against the code on 24 July 2026; the Deploy section was rewritten on
 - `layouts/` — project-level overrides: RSS and 404 only
 - `themes/glass/` — layouts, `static/css/style.css`, the six woff2 fonts,
   favicon
-- `static/` — the two standalone art pages, the shared p5.js, the RSS
+- `static/` — the three standalone art pages, the shared p5.js, the RSS
   stylesheet
 
 ## Deploy
@@ -83,8 +83,8 @@ Verified against the code on 24 July 2026; the Deploy section was rewritten on
 ## Conventions
 - **goldmark `unsafe` is off** (`hugo.toml:13`) — no raw HTML in markdown, and
   the content currently honours that with zero HTML tags.
-- **p5.js is shared** at `static/js/p5.min.js`; both art pages reference it by
-  absolute path. Don't vendor a second copy.
+- **p5.js is shared** at `static/js/p5.min.js`; all three art pages reference
+  it by absolute path. Don't vendor a second copy.
 - **Favicons:** SVG for browsers (`themes/glass/static/favicon.svg`), PNG for
   RSS (`static/favicon.png`), ICO + apple-touch in `static/` for legacy agents.
 - `static/rss.xsl` is referenced by a hardcoded `/rss.xsl` in
@@ -100,9 +100,10 @@ Verified against the code on 24 July 2026; the Deploy section was rewritten on
   blockquotes yet. They cost nothing at runtime and complete the families;
   dropping them would quietly substitute synthetic bold the first time a post
   needs it.
-- The two art pages (`encounter-fields`, `nodes-without-edges`) are linked from
-  the footer of every page, so they're structural navigation rather than hidden
-  — they're simply never mentioned in prose.
+- The three art pages (`encounter-fields`, `desired-state`,
+  `nodes-without-edges`) are linked from the footer of every page, so they're
+  structural navigation rather than hidden — they're simply never mentioned
+  in prose.
 
 ## Language: use `.Site.Language.Locale`
 `hugo.toml:2` sets `locale = 'en-us'`, and three templates read it —
